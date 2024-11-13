@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hangman Challenge</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #6d28d9;
+            --secondary-color: #4c1d95;
+            --accent-color: #8b5cf6;
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --text-light: #e5e7eb;
+            --text-dim: #9ca3af;
+            --glow-primary: 0 0 20px rgba(109, 40, 217, 0.4);
+            --glow-accent: 0 0 25px rgba(139, 92, 246, 0.5);
+        }
+
+        body {
+            background-image: url('https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDI0LTAxL3Jhd3BpeGVsb2ZmaWNlOF84LWJpdF9jbGVhbl9zaW1wbGVfcGl4ZWxfYXJ0X29mX2FfbmlnaHRfc2t5X3NoYV9mZTliYjY2Zi0yNGNkLTRkMGYtOWJlMC0yYTIyYzUyZmYwNGVfMS5qcGc.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-light);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #e5e7eb;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-weight: 700;
+        }
+
+        .level-button {
+            position: relative;
+            background: linear-gradient(145deg, rgba(109, 40, 217, 0.2), rgba(139, 92, 246, 0.1));
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .level-button:not(.locked):hover {
+            transform: translateY(-10px);
+            border-color: rgba(139, 92, 246, 0.5);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.2);
+        }
+
+        .status-badge {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 15px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            background: rgba(139, 92, 246, 0.2);
+            color: #e5e7eb;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .level-button.completed .status-badge {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .level-button.locked .status-badge {
+            background: rgba(156, 163, 175, 0.2);
+            border-color: rgba(156, 163, 175, 0.3);
+        }
+
+        .level-number {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            margin-bottom: 20px;
+        }
+
+        .stars-container {
+            margin-top: 20px;
+        }
+
+        .level-info-tooltip {
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            width: 250px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .level-button:hover .level-info-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .level-info-tooltip h4 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #8b5cf6;
+        }
+
+        .level-info-tooltip p {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #e5e7eb;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1400px) {
+            .level-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .level-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .level-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .level-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .level-button {
+                height: 180px;
+            }
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 0;
+        }
+
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hangman-drawing {
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .word-display {
+            font-size: 2.5rem;
+            letter-spacing: 8px;
+            margin: 20px 0;
+            min-height: 60px;
+        }
+
+        .keyboard {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            margin-top: 30px;
+        }
+
+        .key {
+            background: var(--gradient-primary);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 5px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .key:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: var(--glow);
+        }
+
+
+        .key:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .key:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.2rem;
+        }
+
+        .modal {
+            z-index: 1000;
+        }
+
+        #gameOverModal,
+        #unlockModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+            width: 90%;
+            color: #e5e7eb;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1001;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .leaderboard {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .leaderboard h3 {
+            text-align: center;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .category-hint {
+            font-size: 1.2rem;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        .category-select {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .category-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg,
+                    var(--primary-color) 0%,
+                    transparent 35%,
+                    transparent 65%,
+                    var(--accent-color) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--glow-primary);
+        }
+
+        .category-card:hover::before {
+            opacity: 0.2;
+        }
+
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            /* Changed to 4 cards per row for better sizing */
+            gap: 25px;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .level-button {
+            position: relative;
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .level-button:not(.locked):hover {
+            transform: translateY(-10px);
+            box-shadow: var(--glow-primary);
+        }
+
+        .level-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg,
+                    var(--primary-color) 0%,
+                    transparent 35%,
+                    transparent 65%,
+                    var(--accent-color) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .level-button:not(.locked):hover::before {
+            opacity: 0.2;
+        }
+
+
+        .level-button.locked {
+            background: rgba(17, 24, 39, 0.4);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .level-button.locked .level-number {
+            opacity: 0.5;
+        }
+
+        .lock-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .level-button.completed {
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+
+        .lock-container {
+            text-align: center;
+        }
+
+        .lock-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+
+        .lock-text {
+            font-size: 0.9rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .level-button.locked:hover::after {
+            content: 'Complete previous level to unlock';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            color: var(--text-light);
+        }
+
+        .level-content {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            text-align: center;
+        }
+
+        .level-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--text-light);
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .level-stars {
+            margin-top: 15px;
+            font-size: 1.5rem;
+            letter-spacing: 4px;
+        }
+
+        .stars-earned {
+            color: #fcd34d;
+            text-shadow: 0 0 10px rgba(252, 211, 77, 0.5);
+        }
+
+        .stars-empty {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .level-button::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .level-button:hover:not(.locked)::after {
+            opacity: 0.1;
+        }
+
+        .level-btn {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .level-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .level-btn:hover:not(.locked)::after {
+            opacity: 0.1;
+        }
+
+        .level-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 15px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .level-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: var(--secondary-color);
+        }
+
+        .level-btn.completed {
+            background: #22c55e;
+        }
+
+        .level-btn.locked {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .question-display {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 1.2rem;
+            color: #4b5563;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        [data-screen] {
+            display: none;
+        }
+
+        [data-screen].active {
+            display: block;
+        }
+
+        .progress-info {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 1.1rem;
+            color: #4b5563;
+        }
+
+        .category-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .screen {
+            position: relative;
+            z-index: 1;
+            padding: 40px 20px;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .category-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg,
+                    var(--primary-color) 0%,
+                    transparent 35%,
+                    transparent 65%,
+                    var(--accent-color) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--glow-primary);
+        }
+
+        .category-card:hover::before {
+            opacity: 0.2;
+        }
+
+
+        .level-button {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .level-button:hover:not(.locked) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .level-button.completed {
+            background: #dcfce7;
+            border: 2px solid #22c55e;
+        }
+
+        .level-button.locked {
+            background: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .level-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #e5e7eb;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 15px;
+        }
+
+        .level-stars {
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: #eab308;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--secondary-color);
+        }
+
+        .difficulty-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            border-radius: 50px;
+            margin: 30px auto;
+            width: fit-content;
+            display: flex;
+            gap: 5px;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .difficulty-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+
+        .difficulty-badge.easy {
+            background: linear-gradient(135deg, #059669, #34d399);
+            color: white;
+        }
+
+        .difficulty-badge.medium {
+            background: linear-gradient(135deg, #d97706, #fbbf24);
+            color: white;
+        }
+
+        .difficulty-badge.hard {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+        }
+
+
+        .diff-btn {
+            padding: 10px 25px;
+            border-radius: 25px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .diff-btn.active {
+            background: var(--gradient-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .game-header {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .level-info {
+            text-align: center;
+        }
+
+        .level-info h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .level-info p {
+            margin: 5px 0 0;
+            color: #6b7280;
+        }
+
+        .question-container {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            color: #4b5563;
+            margin: 10px 0;
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .score-summary {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stars-container {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .earned-stars {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .potential-stars {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .star {
+            color: #eab308;
+            transition: all 0.3s ease;
+        }
+
+        .star.empty {
+            opacity: 0.3;
+        }
+
+        .star-message {
+            text-align: center;
+            color: #4b5563;
+            margin: 5px 0;
+        }
+
+        .category-progress {
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            background: #e5e7eb;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .level-progress-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: var(--accent-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .level-grid {
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            }
+
+            .back-btn {
+                position: static;
+                margin-bottom: 20px;
+            }
+
+            .game-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .game-container {
+                background: var(--card-bg);
+                border-radius: 30px;
+                padding: 30px;
+                box-shadow: var(--shadow-lg);
+                margin: 20px auto;
+            }
+
+            .level-filters {
+                background: var(--card-bg);
+                backdrop-filter: blur(8px);
+                border-radius: 15px;
+                padding: 20px;
+                margin: 20px auto;
+                max-width: 800px;
+            }
+
+            .filter-select {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: var(--text-light);
+                padding: 8px 15px;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .filter-select:hover {
+                background: rgba(255, 255, 255, 0.15);
+            }
+
+            .filter-select option {
+                background: var(--card-bg);
+                color: var(--text-light);
+            }
+
+            .filter-group {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: rgba(255, 255, 255, 0.1);
+                padding: 10px 20px;
+                border-radius: 15px;
+            }
+
+            .filter-label {
+                color: white;
+                font-weight: 600;
+            }
+
+            .filter-select option {
+                background: var(--dark-bg);
+                color: white;
+            }
+
+            /* Loading Animation */
+            @keyframes levelPulse {
+                0% {
+                    transform: scale(1);
+                }
+
+                50% {
+                    transform: scale(1.02);
+                }
+
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            .level-button:not(.locked) {
+                animation: levelPulse 2s infinite;
+            }
+
+            /* Completion Effects */
+            .level-button.completed::before {
+                content: '✓';
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                color: #10b981;
+                font-size: 1.2rem;
+                font-weight: bold;
+            }
+
+            /* Responsive Adjustments */
+            @media (max-width: 768px) {
+                .level-grid {
+                    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                    gap: 15px;
+                    padding: 15px;
+                }
+
+                .level-button {
+                    min-height: 120px;
+                    padding: 15px;
+                }
+            }
+
+            .level-card-content {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                padding: 20px;
+            }
+
+            .level-main {
+                text-align: center;
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 15px;
+            }
+
+            .level-header {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .completion-mark {
+                position: absolute;
+                top: 15px;
+                left: 15px;
+                width: 30px;
+                height: 30px;
+                background: linear-gradient(135deg, #10b981, #34d399);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 1.1rem;
+                box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+            }
+
+            .lock-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+
+            .lock-icon {
+                font-size: 1.5rem;
+            }
+
+            .lock-text {
+                font-size: 0.8rem;
+                color: var(--text-dim);
+            }
+
+            .stars-container {
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+            }
+
+            .earned-stars {
+                color: #fcd34d;
+                letter-spacing: 2px;
+            }
+
+            .potential-stars {
+                color: var(--text-dim);
+                letter-spacing: 2px;
+            }
+
+            .level-tooltip {
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%) translateY(10px);
+                background: var(--card-bg);
+                padding: 15px;
+                border-radius: 10px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                width: 200px;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            .level-button:hover .level-tooltip {
+                opacity: 1;
+                visibility: visible;
+                transform: translateX(-50%) translateY(5px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Menu Screens -->
+    <div class="screen" id="categoryScreen">
+        <h1>Hangman Challenge</h1>
+        <div class="category-grid">
+            <div class="category-card" data-category="animals">
+                <h2>Animals</h2>
+                <p>50 Levels</p>
+                <div class="category-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="animalsProgress"></div>
+                    </div>
+                    <span class="progress-text" id="animalsProgressText">0/50</span>
+                </div>
+            </div>
+            <div class="category-card" data-category="countries">
+                <h2>Countries</h2>
+                <p>50 Levels</p>
+                <div class="category-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="countriesProgress"></div>
+                    </div>
+                    <span class="progress-text" id="countriesProgressText">0/50</span>
+                </div>
+            </div>
+            <div class="category-card" data-category="movies">
+                <h2>Movies</h2>
+                <p>50 Levels</p>
+                <div class="category-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="moviesProgress"></div>
+                    </div>
+                    <span class="progress-text" id="moviesProgressText">0/50</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="screen" id="levelScreen" style="display: none;">
+        <button class="back-btn" onclick="showCategoryScreen()">← Back to Categories</button>
+        <h1>Select Level</h1>
+        <h2 id="selectedCategory"></h2>
+        <div class="difficulty-toggle">
+            <button class="diff-btn active" data-difficulty="easy">Easy</button>
+            <button class="diff-btn" data-difficulty="medium">Medium</button>
+            <button class="diff-btn" data-difficulty="hard">Hard</button>
+        </div>
+        <div class="level-filters">
+            <div class="filter-group">
+                <label class="filter-label">Status:</label>
+                <select class="filter-select" id="statusFilter">
+                    <option value="all">All Levels</option>
+                    <option value="completed">Completed</option>
+                    <option value="available">Available</option>
+                    <option value="locked">Locked</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Stars:</label>
+                <select class="filter-select" id="starsFilter">
+                    <option value="all">Any Stars</option>
+                    <option value="3">3 Stars</option>
+                    <option value="2">2+ Stars</option>
+                    <option value="1">1+ Star</option>
+                    <option value="0">No Stars</option>
+                </select>
+            </div>
+        </div>
+        <div class="level-grid" id="levelGrid">
+            <!-- Levels will be populated here -->
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div class="screen" id="gameScreen" style="display: none;">
+        <div class="game-header">
+            <button class="back-btn" onclick="showLevelScreen()">← Back to Levels</button>
+            <div class="level-info">
+                <h2>Level <span id="currentLevel">1</span></h2>
+                <p id="difficultyDisplay">Easy</p>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="game-info">
+                <div>Score: <span id="score">0</span></div>
+                <div>Lives: <span id="lives">6</span></div>
+                <div>Time: <span id="timer">60</span>s</div>
+            </div>
+
+            <div class="question-container">
+                <h3>Riddle:</h3>
+                <p id="questionText" class="question-text"></p>
+            </div>
+
+            <div class="category-hint" id="categoryHint"></div>
+            <canvas class="hangman-drawing" id="hangmanCanvas"></canvas>
+            <div class="word-display" id="wordDisplay"></div>
+            <div class="progress-bar">
+                <div class="progress" id="timeProgress"></div>
+            </div>
+            <div class="keyboard" id="keyboard"></div>
+
+            <div class="game-controls">
+                <button class="btn" id="hintBtn">Use Hint (-50 points)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 id="gameOverTitle">Game Over!</h2>
+            <p id="gameOverMessage"></p>
+            <div class="score-summary">
+                <p>Level Score: <span id="finalScore">0</span></p>
+                <p>Best Score: <span id="bestScore">0</span></p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="retryBtn">Retry Level</button>
+                <button class="btn" id="nextLevelBtn">Next Level</button>
+                <button class="btn" id="backToLevelsBtn">Back to Levels</button>
+            </div>
+            <div class="level-progress">
+                <div class="stars-container">
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                </div>
+                <p class="star-message" id="starMessage">Perfect! You earned 3 stars!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="unlockModal">
+        <div class="modal-content">
+            <h2>Level Locked!</h2>
+            <p>Complete the previous level to unlock this one.</p>
+            <button class="btn" onclick="closeUnlockModal()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Game configuration
+        const QUESTIONS_DATA = {
+    animals: [
+        { word: 'ELEPHANT', question: "I'm the largest land mammal with a long trunk. What am I?", difficulty: 'easy' },
+        { word: 'GIRAFFE', question: "My neck helps me reach the tallest trees. What am I?", difficulty: 'easy' },
+        { word: 'PENGUIN', question: "I waddle on ice and swim like a pro. What am I?", difficulty: 'easy' },
+        { word: 'KANGAROO', question: "I hop around with a pouch for my baby. What am I?", difficulty: 'easy' },
+        { word: 'OSTRICH', question: "I can't fly, but I can run very fast. What am I?", difficulty: 'easy' },
+        
+        { word: 'DOLPHIN', question: "I'm known for my intelligence and clicking sounds. What am I?", difficulty: 'medium' },
+        { word: 'CHEETAH', question: "I'm the fastest land animal. What am I?", difficulty: 'medium' },
+        { word: 'WOLVERINE', question: "I'm a small but fierce animal with a reputation for strength. What am I?", difficulty: 'medium' },
+        { word: 'ORANGUTAN', question: "I'm an intelligent ape from the rainforests of Borneo and Sumatra. What am I?", difficulty: 'medium' },
+        { word: 'FLAMINGO', question: "I'm a bird with pink feathers and long legs. What am I?", difficulty: 'medium' },
+
+        { word: 'CHAMELEON', question: "I can change colors to blend with my surroundings. What am I?", difficulty: 'hard' },
+        { word: 'WALRUS', question: "I have tusks and live in cold, icy environments. What am I?", difficulty: 'hard' },
+        { word: 'NARWHAL', question: "I'm known as the 'unicorn of the sea' with a long tusk. What am I?", difficulty: 'hard' },
+        { word: 'KOMODO', question: "I'm a large lizard from Indonesia known for my venomous bite. What am I?", difficulty: 'hard' },
+        { word: 'AXOLOTL', question: "I'm a rare aquatic creature known for my ability to regenerate limbs. What am I?", difficulty: 'hard' }
+    ],
+    countries: [
+        { word: 'FRANCE', question: "The Eiffel Tower stands in my capital. What country am I?", difficulty: 'easy' },
+        { word: 'JAPAN', question: "Mount Fuji is my famous landmark. What country am I?", difficulty: 'easy' },
+        { word: 'SPAIN', question: "I'm known for flamenco dancing and bullfighting. What country am I?", difficulty: 'easy' },
+        { word: 'INDIA', question: "The Taj Mahal is one of my famous landmarks. What country am I?", difficulty: 'easy' },
+        { word: 'CANADA', question: "I'm known for maple syrup and friendly people. What country am I?", difficulty: 'easy' },
+        
+        { word: 'BRAZIL', question: "I'm home to the Amazon Rainforest. What country am I?", difficulty: 'medium' },
+        { word: 'EGYPT', question: "Ancient pyramids dot my landscape. What country am I?", difficulty: 'medium' },
+        { word: 'THAILAND', question: "I'm known for my tropical beaches and spicy food. What country am I?", difficulty: 'medium' },
+        { word: 'TURKEY', question: "I have both European and Asian territory. What country am I?", difficulty: 'medium' },
+        { word: 'ITALY', question: "I'm shaped like a boot and famous for pasta. What country am I?", difficulty: 'medium' },
+
+        { word: 'RUSSIA', question: "I'm the largest country by land area. What country am I?", difficulty: 'hard' },
+        { word: 'MONGOLIA', question: "The Gobi Desert covers part of my land. What country am I?", difficulty: 'hard' },
+        { word: 'ICELAND', question: "I'm known for volcanoes, glaciers, and hot springs. What country am I?", difficulty: 'hard' },
+        { word: 'NIGERIA', question: "I'm the most populous country in Africa. What country am I?", difficulty: 'hard' },
+        { word: 'ARGENTINA', question: "The tango dance originated in my country. What country am I?", difficulty: 'hard' }
+    ],
+    movies: [
+        { word: 'AVATAR', question: "I feature blue aliens on a planet called Pandora. What movie am I?", difficulty: 'easy' },
+        { word: 'FROZEN', question: "The cold never bothered me anyway! What movie am I?", difficulty: 'easy' },
+        { word: 'TOY STORY', question: "I'm a movie about toys that come to life. What movie am I?", difficulty: 'easy' },
+        { word: 'SHREK', question: "I’m an ogre who goes on a journey to save a princess. What movie am I?", difficulty: 'easy' },
+        { word: 'JURASSIC PARK', question: "Dinosaurs come back to life in my story. What movie am I?", difficulty: 'easy' },
+        
+        { word: 'INCEPTION', question: "Dreams within dreams within dreams. What movie am I?", difficulty: 'medium' },
+        { word: 'JAWS', question: "This shark thriller made people afraid of the ocean. What movie am I?", difficulty: 'medium' },
+        { word: 'GLADIATOR', question: "Are you not entertained? What movie am I?", difficulty: 'medium' },
+        { word: 'INTERSTELLAR', question: "A journey through a wormhole to save humanity. What movie am I?", difficulty: 'medium' },
+        { word: 'TITANIC', question: "A romance on a doomed ocean liner. What movie am I?", difficulty: 'medium' },
+
+        { word: 'MATRIX', question: "Red pill or blue pill? What movie am I?", difficulty: 'hard' },
+        { word: 'MEMENTO', question: "A thriller about a man with short-term memory loss. What movie am I?", difficulty: 'hard' },
+        { word: 'SEVEN', question: "A detective movie about the seven deadly sins. What movie am I?", difficulty: 'hard' },
+        { word: 'WHIPLASH', question: "A drummer and his relentless music teacher. What movie am I?", difficulty: 'hard' },
+        { word: 'OLD BOY', question: "A man seeks revenge after 15 years of captivity. What movie am I?", difficulty: 'hard' }
+    ]
+};
+
+        // Game configuration
+        const CATEGORIES = {
+            animals: ['ELEPHANT', 'GIRAFFE', 'PENGUIN', 'KANGAROO', 'DOLPHIN'],
+            countries: ['FRANCE', 'JAPAN', 'BRAZIL', 'CANADA', 'EGYPT'],
+            movies: ['AVATAR', 'INCEPTION', 'TITANIC', 'GLADIATOR', 'JAWS']
+        };
+
+        const DIFFICULTY_SETTINGS = {
+            easy: { timeLimit: 120, lives: 8 },
+            medium: { timeLimit: 60, lives: 6 },
+            hard: { timeLimit: 45, lives: 4 }
+        };
+
+        let activeFilters = {
+            difficulty: 'all',
+            status: 'all',
+            stars: 'all'
+        };
+
+        // New game state variables
+        let currentDifficulty = 'easy';
+        let currentLevelIndex = 0;
+        let selectedCategory = '';
+        let gameProgress = loadGameProgress();
+
+        // New functions for level system
+        function loadGameProgress() {
+            return JSON.parse(localStorage.getItem('hangmanProgress')) || {
+                animals: { completed: [], stars: {} },
+                countries: { completed: [], stars: {} },
+                movies: { completed: [], stars: {} }
+            };
+        }
+
+        function saveGameProgress() {
+            localStorage.setItem('hangmanProgress', JSON.stringify(gameProgress));
+            updateProgressDisplays();
+        }
+
+        function updateProgressDisplays() {
+            Object.keys(QUESTIONS_DATA).forEach(category => {
+                const completed = gameProgress[category].completed.length;
+                const total = QUESTIONS_DATA[category].length;
+                const percent = (completed / total) * 100;
+
+                document.getElementById(`${category}Progress`).style.width = `${percent}%`;
+                document.getElementById(`${category}ProgressText`).textContent = `${completed}/${total}`;
+            });
+        }
+
+        function showCategoryScreen() {
+            document.querySelectorAll('.screen').forEach(screen => screen.style.display = 'none');
+            document.getElementById('categoryScreen').style.display = 'block';
+            updateProgressDisplays();
+        }
+
+        function showLevelScreen() {
+            document.querySelectorAll('.screen').forEach(screen => screen.style.display = 'none');
+            document.getElementById('levelScreen').style.display = 'block';
+            document.getElementById('selectedCategory').textContent =
+                selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1);
+            renderLevelGrid();
+        }
+
+        function showGameScreen() {
+            document.querySelectorAll('.screen').forEach(screen => screen.style.display = 'none');
+            document.getElementById('gameScreen').style.display = 'block';
+        }
+
+        function filterLevels() {
+            const levels = QUESTIONS_DATA[selectedCategory];
+            const filteredLevels = levels.filter(level => {
+                // Difficulty filter
+                if (activeFilters.difficulty !== 'all' && level.difficulty !== activeFilters.difficulty) {
+                    return false;
+                }
+
+                // Status filter
+                const isCompleted = gameProgress[selectedCategory].completed.includes(levels.indexOf(level));
+                const isAvailable = levels.indexOf(level) === 0 ||
+                    gameProgress[selectedCategory].completed.includes(levels.indexOf(level) - 1);
+
+                if (activeFilters.status === 'completed' && !isCompleted) return false;
+                if (activeFilters.status === 'available' && (!isAvailable || isCompleted)) return false;
+                if (activeFilters.status === 'locked' && isAvailable) return false;
+
+                // Stars filter
+                const stars = gameProgress[selectedCategory].stars[levels.indexOf(level)] || 0;
+                if (activeFilters.stars !== 'all' && stars < parseInt(activeFilters.stars)) return false;
+
+                return true;
+            });
+
+            return filteredLevels;
+        }
+
+        function renderLevelGrid() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            const levels = QUESTIONS_DATA[selectedCategory];
+
+            // Get current filter values
+            const statusFilter = document.getElementById('statusFilter').value;
+            const starsFilter = document.getElementById('starsFilter').value;
+            const difficultyFilter = document.querySelector('.diff-btn.active')?.dataset.difficulty || 'all';
+
+            // Filter levels based on criteria
+            const filteredLevels = levels.filter((level, index) => {
+                // Difficulty filter
+                if (difficultyFilter !== 'all' && level.difficulty !== difficultyFilter) {
+                    return false;
+                }
+
+                const isCompleted = gameProgress[selectedCategory].completed.includes(index);
+                const isAvailable = index === 0 || gameProgress[selectedCategory].completed.includes(index - 1);
+                const stars = gameProgress[selectedCategory].stars[index] || 0;
+
+                // Status filter
+                switch (statusFilter) {
+                    case 'completed':
+                        if (!isCompleted) return false;
+                        break;
+                    case 'available':
+                        if (!isAvailable || isCompleted) return false;
+                        break;
+                    case 'locked':
+                        if (isAvailable) return false;
+                        break;
+                }
+
+                // Stars filter
+                if (starsFilter !== 'all' && stars < parseInt(starsFilter)) return false;
+
+                return true;
+            });
+
+            // Show message if no levels match filters
+            if (filteredLevels.length === 0) {
+                grid.innerHTML = `
+            <div class="no-levels-message">
+                <p>No levels match your current filters</p>
+                <button class="btn" onclick="resetFilters()">Reset Filters</button>
+            </div>
+        `;
+                return;
+            }
+
+            // Render filtered levels
+            filteredLevels.forEach((level, filteredIndex) => {
+                const actualIndex = levels.indexOf(level);
+                const levelBtn = document.createElement('div');
+                levelBtn.className = 'level-button';
+
+                const isCompleted = gameProgress[selectedCategory].completed.includes(actualIndex);
+                const isAvailable = actualIndex === 0 || gameProgress[selectedCategory].completed.includes(actualIndex - 1);
+                const stars = gameProgress[selectedCategory].stars[actualIndex] || 0;
+
+                // Create the level card content
+                const levelContent = `
+    <div class="level-card-content">
+        <div class="difficulty-badge ${level.difficulty}">
+            ${level.difficulty.toUpperCase()}
+        </div>
+        
+        <div class="level-main">
+            <div class="level-header">
+                <span class="level-number">${actualIndex + 1}</span>
+                ${isCompleted ? `<span class="completion-mark">✓</span>` : ''}
+            </div>
+            
+            ${!isAvailable ? `
+                <div class="lock-container">
+                    <span class="lock-icon">🔒</span>
+                    <span class="lock-text">Complete previous level</span>
+                </div>
+            ` : `
+                <div class="stars-container">
+                    ${isCompleted ?
+                        `<div class="earned-stars">${'⭐'.repeat(stars)}</div>` :
+                        `<div class="potential-stars">${'☆'.repeat(3)}</div>`
+                    }
+                </div>
+            `}
+        </div>
+        
+        <div class="status-badge">
+            ${isCompleted ? 'COMPLETED' : isAvailable ? 'AVAILABLE' : 'LOCKED'}
+        </div>
+    </div>
+`;
+
+                levelBtn.innerHTML = levelContent;
+
+                // Add appropriate classes
+                if (isCompleted) levelBtn.classList.add('completed');
+                if (!isAvailable) levelBtn.classList.add('locked');
+                if (isAvailable && !isCompleted) levelBtn.classList.add('available');
+
+                // Add click handler
+                levelBtn.addEventListener('click', (e) => {
+                    if (!isAvailable) {
+                        // Show locked message using modal
+                        document.getElementById('unlockModal').style.display = 'flex';
+                        return;
+                    }
+                    startLevel(actualIndex);
+                });
+
+                grid.appendChild(levelBtn);
+
+                // Add entrance animation with GSAP
+                gsap.from(levelBtn, {
+                    duration: 0.5,
+                    scale: 0.9,
+                    y: 20,
+                    opacity: 0,
+                    delay: filteredIndex * 0.1,
+                    ease: "elastic.out(1, 0.8)",
+                    clearProps: "all"
+                });
+            });
+
+            // Add hover animations
+            document.querySelectorAll('.level-button:not(.locked)').forEach(button => {
+                button.addEventListener('mouseenter', () => {
+                    gsap.to(button, {
+                        duration: 0.3,
+                        y: -5,
+                        scale: 1.05,
+                        boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                        ease: "power2.out"
+                    });
+                });
+
+                button.addEventListener('mouseleave', () => {
+                    gsap.to(button, {
+                        duration: 0.3,
+                        y: 0,
+                        scale: 1,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        ease: "power2.in"
+                    });
+                });
+            });
+        }
+
+        // Helper function to reset filters
+        function resetFilters() {
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('starsFilter').value = 'all';
+            document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.diff-btn[data-difficulty="all"]')?.classList.add('active');
+            renderLevelGrid();
+        }
+
+
+        // Modified game initialization
+        function startLevel(levelIndex) {
+            if (levelIndex > 0 && !gameProgress[selectedCategory].completed.includes(levelIndex - 1)) {
+                document.getElementById('unlockModal').style.display = 'flex';
+                return;
+            }
+
+            currentLevelIndex = levelIndex;
+            const levelData = QUESTIONS_DATA[selectedCategory][levelIndex];
+            currentWord = levelData.word;
+            currentDifficulty = levelData.difficulty;
+            document.getElementById('questionText').textContent = levelData.question;
+            document.getElementById('currentLevel').textContent = levelIndex + 1;
+            document.getElementById('difficultyDisplay').textContent =
+                currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+
+            showGameScreen();
+            initializeGame();
+        }
+
+        // Game state
+        let currentWord = '';
+        let currentCategory = '';
+        let guessedLetters = new Set();
+        let lives = DIFFICULTY_SETTINGS.medium.lives;
+        let score = 0;
+        let timer = DIFFICULTY_SETTINGS.medium.timeLimit;
+        let gameInterval;
+
+        // DOM Elements
+        const hangmanCanvas = document.getElementById('hangmanCanvas');
+        const ctx = hangmanCanvas.getContext('2d');
+        const wordDisplay = document.getElementById('wordDisplay');
+        const keyboard = document.getElementById('keyboard');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const timerElement = document.getElementById('timer');
+        const timeProgress = document.getElementById('timeProgress');
+        const categoryHint = document.getElementById('categoryHint');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const finalScore = document.getElementById('finalScore');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        // Initialize canvas
+        hangmanCanvas.width = 300;
+        hangmanCanvas.height = 300;
+
+        // Load game data from localStorage
+        const gameData = {
+            loadLeaderboard: () => {
+                const leaderboard = JSON.parse(localStorage.getItem('hangmanLeaderboard')) || [];
+                return leaderboard;
+            },
+            saveLeaderboard: (leaderboard) => {
+                localStorage.setItem('hangmanLeaderboard', JSON.stringify(leaderboard));
+            },
+            addScore: (score) => {
+                const leaderboard = gameData.loadLeaderboard();
+                leaderboard.push(score);
+                leaderboard.sort((a, b) => b - a);
+                leaderboard.splice(10); // Keep only top 10 scores
+                gameData.saveLeaderboard(leaderboard);
+            }
+        };
+
+        // Drawing functions
+        const drawHangman = {
+            gallows: () => {
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.moveTo(50, 270);
+                ctx.lineTo(250, 270);
+                ctx.moveTo(150, 270);
+                ctx.lineTo(150, 50);
+                ctx.lineTo(250, 50);
+                ctx.lineTo(250, 80);
+                ctx.stroke();
+            },
+            head: () => {
+                ctx.beginPath();
+                ctx.arc(250, 110, 30, 0, Math.PI * 2);
+                ctx.stroke();
+            },
+            body: () => {
+                ctx.beginPath();
+                ctx.moveTo(250, 140);
+                ctx.lineTo(250, 200);
+                ctx.stroke();
+            },
+            leftArm: () => {
+                ctx.beginPath();
+                ctx.moveTo(250, 160);
+                ctx.lineTo(200, 180);
+                ctx.stroke();
+            },
+            rightArm: () => {
+                ctx.beginPath();
+                ctx.moveTo(250, 160);
+                ctx.lineTo(300, 180);
+                ctx.stroke();
+            },
+            leftLeg: () => {
+                ctx.beginPath();
+                ctx.moveTo(250, 200);
+                ctx.lineTo(200, 250);
+                ctx.stroke();
+            },
+            rightLeg: () => {
+                ctx.beginPath();
+                ctx.moveTo(250, 200);
+                ctx.lineTo(300, 250);
+                ctx.stroke();
+            }
+        };
+
+        const drawParts = [
+            drawHangman.head,
+            drawHangman.body,
+            drawHangman.leftArm,
+            drawHangman.rightArm,
+            drawHangman.leftLeg,
+            drawHangman.rightLeg
+        ];
+
+        document.getElementById('statusFilter').addEventListener('change', (e) => {
+            activeFilters.status = e.target.value;
+            renderLevelGrid();
+        });
+
+        document.getElementById('starsFilter').addEventListener('change', (e) => {
+            activeFilters.stars = e.target.value;
+            renderLevelGrid();
+        });
+
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilters.difficulty = btn.dataset.difficulty;
+                renderLevelGrid();
+            });
+        });
+
+        function resetFilters() {
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('starsFilter').value = 'all';
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.difficulty === 'all') btn.classList.add('active');
+            });
+            renderLevelGrid();
+        }
+
+
+        const newStyles = `
+    .level-button {
+        position: relative;
+        padding: 25px 15px;
+        min-height: 120px;
+    }
+
+    .difficulty-badge {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .difficulty-badge.easy { background: #10b981; color: white; }
+    .difficulty-badge.medium { background: #f59e0b; color: white; }
+    .difficulty-badge.hard { background: #ef4444; color: white; }
+
+    .level-info-tooltip {
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(17, 24, 39, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px;
+    border-radius: 12px;
+    width: 250px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.level-button:hover .level-info-tooltip {
+    opacity: 1;
+    visibility: visible;
+    bottom: 110%;
+}
+
+    .level-stars.empty {
+        color: #d1d5db;
+    }
+
+    .completion-badge {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        color: #10b981;
+    }
+
+    .no-levels-message {
+        text-align: center;
+        padding: 40px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 15px;
+        color: white;
+    }
+
+    .lock-message {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 5px;
+    }
+`;
+
+        // Add the styles to the document
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = newStyles;
+        document.head.appendChild(styleSheet);
+
+
+        // Game functions
+        function initializeGame() {
+            // Reset game state
+            lives = DIFFICULTY_SETTINGS.medium.lives;
+            score = 0;
+            timer = DIFFICULTY_SETTINGS.medium.timeLimit;
+            guessedLetters.clear();
+
+            // Select random category and word
+            const categories = Object.keys(CATEGORIES);
+            currentCategory = categories[Math.floor(Math.random() * categories.length)];
+            const words = CATEGORIES[currentCategory];
+            currentWord = words[Math.floor(Math.random() * words.length)];
+
+            // Update UI
+            categoryHint.textContent = `Category: ${currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)}`;
+            updateWordDisplay();
+            updateGameInfo();
+            createKeyboard();
+            clearCanvas();
+            drawHangman.gallows();
+
+            // Start timer
+            if (gameInterval) clearInterval(gameInterval);
+            startTimer();
+
+            // Enable hint button
+            hintBtn.disabled = false;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, hangmanCanvas.width, hangmanCanvas.height);
+        }
+
+        function createKeyboard() {
+            keyboard.innerHTML = '';
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                const button = document.createElement('button');
+                button.textContent = letter;
+                button.className = 'key';
+                button.disabled = guessedLetters.has(letter);
+                button.addEventListener('click', () => handleGuess(letter));
+                keyboard.appendChild(button);
+            }
+        }
+
+        function updateWordDisplay() {
+            wordDisplay.textContent = currentWord
+                .split('')
+                .map(letter => guessedLetters.has(letter) ? letter : '_')
+                .join(' ');
+        }
+
+        function updateGameInfo() {
+            scoreElement.textContent = score;
+            livesElement.textContent = lives;
+            timerElement.textContent = timer;
+            timeProgress.style.width = `${(timer / DIFFICULTY_SETTINGS.medium.timeLimit) * 100}%`;
+        }
+
+        function handleGuess(letter) {
+            if (guessedLetters.has(letter)) return;
+
+            guessedLetters.add(letter);
+            const button = [...keyboard.children].find(btn => btn.textContent === letter);
+            button.disabled = true;
+
+            if (currentWord.includes(letter)) {
+                // Correct guess
+                score += 10;
+                gsap.to(button, {
+                    backgroundColor: '#22c55e',
+                    duration: 0.3
+                });
+                updateWordDisplay();
+                if (!wordDisplay.textContent.includes('_')) {
+                    endGame(true);
+                }
+            } else {
+                // Incorrect guess
+                lives--;
+                score = Math.max(0, score - 5);
+                gsap.to(button, {
+                    backgroundColor: '#ef4444',
+                    duration: 0.3
+                });
+                drawParts[DIFFICULTY_SETTINGS.medium.lives - lives - 1]();
+                if (lives === 0) {
+                    endGame(false);
+                }
+            }
+
+            updateGameInfo();
+        }
+
+        function startTimer() {
+            gameInterval = setInterval(() => {
+                timer--;
+                updateGameInfo();
+                if (timer <= 0) {
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        function endGame(won) {
+            clearInterval(gameInterval);
+
+            if (won) {
+                const stars = calculateStars();
+                if (!gameProgress[selectedCategory].completed.includes(currentLevelIndex)) {
+                    gameProgress[selectedCategory].completed.push(currentLevelIndex);
+                }
+                gameProgress[selectedCategory].stars[currentLevelIndex] =
+                    Math.max(stars, gameProgress[selectedCategory].stars[currentLevelIndex] || 0);
+                saveGameProgress();
+            }
+
+            document.getElementById('gameOverTitle').textContent = won ? 'Congratulations!' : 'Game Over!';
+            document.getElementById('gameOverMessage').textContent = won
+                ? `You discovered the word: ${currentWord}`
+                : `The word was: ${currentWord}`;
+            document.getElementById('finalScore').textContent = score;
+
+            const nextLevelBtn = document.getElementById('nextLevelBtn');
+            nextLevelBtn.style.display = won && currentLevelIndex < QUESTIONS_DATA[selectedCategory].length - 1
+                ? 'block'
+                : 'none';
+
+            document.getElementById('gameOverModal').style.display = 'flex';
+        }
+        function handleModals() {
+            // Close modals when clicking outside
+            window.onclick = function (event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            }
+
+            // Add escape key handler for modals
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    document.querySelectorAll('.modal').forEach(modal => {
+                        modal.style.display = 'none';
+                    });
+                }
+            });
+        }
+
+        // Initialize modal handlers
+        handleModals();
+
+        function calculateStars() {
+            if (score >= 100 && lives >= 5) return 3;
+            if (score >= 70 && lives >= 3) return 2;
+            return 1;
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', () => {
+                selectedCategory = card.dataset.category;
+                showLevelScreen();
+            });
+        });
+
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentDifficulty = btn.dataset.difficulty;
+                renderLevelGrid();
+            });
+        });
+
+        document.getElementById('retryBtn').addEventListener('click', () => {
+            document.getElementById('gameOverModal').style.display = 'none';
+            startLevel(currentLevelIndex);
+        });
+
+        document.getElementById('nextLevelBtn').addEventListener('click', () => {
+            document.getElementById('gameOverModal').style.display = 'none';
+            startLevel(currentLevelIndex + 1);
+        });
+
+        document.getElementById('backToLevelsBtn').addEventListener('click', () => {
+            document.getElementById('gameOverModal').style.display = 'none';
+            showLevelScreen();
+        });
+
+
+        function updateLeaderboard() {
+            const leaderboard = gameData.loadLeaderboard();
+            leaderboardList.innerHTML = leaderboard
+                .map(score => `<li>${score} points</li>`)
+                .join('');
+        }
+
+        // Event Listeners
+        playAgainBtn.addEventListener('click', () => {
+            gameOverModal.style.display = 'none';
+            initializeGame();
+        });
+
+        hintBtn.addEventListener('click', () => {
+            if (score < 50) return;
+
+            score -= 50;
+            const unguessedLetters = currentWord
+                .split('')
+                .filter(letter => !guessedLetters.has(letter));
+
+            if (unguessedLetters.length > 0) {
+                const hintLetter = unguessedLetters[Math.floor(Math.random() * unguessedLetters.length)];
+                handleGuess(hintLetter);
+            }
+
+            hintBtn.disabled = score < 50;
+            updateGameInfo();
+        });
+
+        // Initialize game on load
+        initializeGame();
+    </script>
+</body>
+
+</html>
